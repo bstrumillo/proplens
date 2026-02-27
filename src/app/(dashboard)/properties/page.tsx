@@ -1,10 +1,21 @@
-export default function PropertiesPage() {
+import { requireSession } from "@/lib/auth/session";
+import { getProperties } from "@/lib/services/properties";
+import { PropertiesClient } from "./properties-client";
+
+export default async function PropertiesPage() {
+  const session = await requireSession();
+
+  const result = await getProperties(session.organizationId, {
+    page: 1,
+    limit: 100,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Properties</h1>
-      <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-        Properties management coming in Phase 1.
-      </div>
-    </div>
+    <PropertiesClient
+      properties={result.data}
+      totalCount={result.total}
+    />
   );
 }

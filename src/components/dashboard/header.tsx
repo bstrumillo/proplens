@@ -1,9 +1,18 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { signOut } from "@/lib/auth/client";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -12,6 +21,7 @@ const pageTitles: Record<string, string> = {
   "/tenants": "Tenants",
   "/leases": "Leases",
   "/maintenance": "Maintenance Requests",
+  "/maintenance/vendors": "Vendors",
   "/financials": "Financials",
   "/settings": "Settings",
 };
@@ -20,7 +30,11 @@ function getPageTitle(pathname: string): string {
   if (pageTitles[pathname]) {
     return pageTitles[pathname];
   }
-  for (const [path, title] of Object.entries(pageTitles)) {
+  // Sort by path length descending so more specific paths match first
+  const sorted = Object.entries(pageTitles).sort(
+    ([a], [b]) => b.length - a.length
+  );
+  for (const [path, title] of sorted) {
     if (path !== "/" && pathname.startsWith(path)) {
       return title;
     }
@@ -28,13 +42,31 @@ function getPageTitle(pathname: string): string {
   return "Dashboard";
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 export function DashboardHeader({
   onMobileMenuToggle,
+  user,
 }: {
   onMobileMenuToggle: () => void;
+  user: { name: string; email: string };
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const title = getPageTitle(pathname);
+
+  async function handleLogout() {
+    await signOut();
+    router.push("/login");
+  }
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b bg-white px-4 md:px-6">
@@ -49,9 +81,30 @@ export function DashboardHeader({
       </Button>
       <h1 className="text-lg font-semibold">{title}</h1>
       <div className="ml-auto flex items-center gap-4">
-        <Avatar>
-          <AvatarFallback>U</AvatarFallback>
-        </Avatar>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative size-8 rounded-full">
+              <Avatar>
+                <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user.name}</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user.email}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 size-4" />
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

@@ -1,10 +1,25 @@
-export default function UnitsPage() {
+import { requireSession } from "@/lib/auth/session";
+import { getUnits, getBuildingsForOrg } from "@/lib/services/units";
+import { UnitsClient } from "./units-client";
+
+export default async function UnitsPage() {
+  const session = await requireSession();
+
+  const [result, buildings] = await Promise.all([
+    getUnits(session.organizationId, {
+      page: 1,
+      limit: 100,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    }),
+    getBuildingsForOrg(session.organizationId),
+  ]);
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Units</h1>
-      <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-        Units management coming in Phase 1.
-      </div>
-    </div>
+    <UnitsClient
+      units={result.data}
+      totalCount={result.total}
+      buildings={buildings}
+    />
   );
 }

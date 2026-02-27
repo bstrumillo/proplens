@@ -1,24 +1,38 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth/session";
 
-import { useState } from "react";
-import { Sidebar, MobileSidebar } from "@/components/dashboard/sidebar";
-import { DashboardHeader } from "@/components/dashboard/header";
+export const dynamic = "force-dynamic";
+import { db } from "@/lib/db";
+import { organizations } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  const org = await db.query.organizations.findFirst({
+    where: eq(organizations.id, session.organizationId),
+  });
 
   return (
-    <div className="min-h-screen">
-      <Sidebar />
-      <MobileSidebar open={mobileOpen} onOpenChange={setMobileOpen} />
-      <div className="md:pl-64">
-        <DashboardHeader onMobileMenuToggle={() => setMobileOpen(true)} />
-        <main className="p-4 md:p-6 lg:p-8">{children}</main>
-      </div>
-    </div>
+    <DashboardShell
+      user={{
+        name: session.user.name,
+        email: session.user.email,
+      }}
+      org={{
+        name: org?.name ?? "My Organization",
+      }}
+    >
+      {children}
+    </DashboardShell>
   );
 }

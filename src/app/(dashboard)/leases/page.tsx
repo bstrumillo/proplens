@@ -1,10 +1,31 @@
-export default function LeasesPage() {
+import { requireSession } from "@/lib/auth/session";
+import {
+  getLeases,
+  getUnitsForDropdown,
+  getTenantsForDropdown,
+} from "@/lib/services/leases";
+import { LeasesClient } from "./leases-client";
+
+export default async function LeasesPage() {
+  const session = await requireSession();
+
+  const [leasesResult, units, tenants] = await Promise.all([
+    getLeases(session.organizationId, {
+      page: 1,
+      limit: 100,
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    }),
+    getUnitsForDropdown(session.organizationId),
+    getTenantsForDropdown(session.organizationId),
+  ]);
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Leases</h1>
-      <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-        Leases management coming in Phase 1.
-      </div>
-    </div>
+    <LeasesClient
+      leases={leasesResult.data}
+      totalCount={leasesResult.total}
+      units={units}
+      tenants={tenants}
+    />
   );
 }
