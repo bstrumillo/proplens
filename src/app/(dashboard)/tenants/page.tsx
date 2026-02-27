@@ -1,0 +1,10 @@
+export default function TenantsPage() {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold tracking-tight">Tenants</h1>
+      <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+        Tenants management coming in Phase 1.
+      </div>
+    </div>
+  );
+}
