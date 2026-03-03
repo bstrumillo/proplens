@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { csvImports } from "@/lib/db/schema";
 import { parseCSV, reportTypeLabels } from "@/lib/parsers";
+import { importParsedData } from "@/lib/services/csv-import";
 import type { ReportType } from "@/lib/parsers";
 
 export interface UploadResult {
@@ -12,6 +13,12 @@ export interface UploadResult {
   reportType: ReportType;
   reportTypeLabel: string;
   rowCount: number;
+  importStats?: {
+    created: { units: number; tenants: number; leases: number; payments: number };
+    updated: { units: number; tenants: number; leases: number };
+    skipped: number;
+    errors: string[];
+  };
   error?: string;
 }
 
@@ -54,7 +61,10 @@ export async function uploadCSV(
     };
   }
 
-  // Record the import
+  // Import parsed data into domain tables
+  const importResult = await importParsedData(session.organizationId, parsed);
+
+  // Record the import metadata
   await db.insert(csvImports).values({
     organizationId: session.organizationId,
     reportType: parsed.type,
@@ -63,6 +73,7 @@ export async function uploadCSV(
     stats: {
       importedBy: session.user.email,
       parsedAt: new Date().toISOString(),
+      ...importResult,
     },
   });
 
@@ -74,5 +85,11 @@ export async function uploadCSV(
     reportType: parsed.type,
     reportTypeLabel: reportTypeLabels[parsed.type],
     rowCount: parsed.rowCount,
+    importStats: {
+      created: importResult.created,
+      updated: importResult.updated,
+      skipped: importResult.skipped,
+      errors: importResult.errors,
+    },
   };
 }

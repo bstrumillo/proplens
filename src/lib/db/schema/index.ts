@@ -14,3 +14,4 @@ export * from "./api-keys";
 export * from "./audit-log";
 export * from "./csv-imports";
 export * from "./relations";
+export * from "./email-ingestions";
