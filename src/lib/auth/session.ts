@@ -1,8 +1,5 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { organizationMembers } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+// Auth disabled — hardcoded session for development
+// To re-enable auth, restore the original Better Auth implementation
 
 export type SessionUser = {
   id: string;
@@ -16,40 +13,20 @@ export type SessionContext = {
   role: "owner" | "admin" | "manager" | "staff" | "viewer";
 };
 
+const HARDCODED_SESSION: SessionContext = {
+  user: {
+    id: "dev-user-001",
+    email: "brian@doublejack.com",
+    name: "Brian Strumillo",
+  },
+  organizationId: "4621f985-b8de-4b19-a243-54821b9adc8c",
+  role: "owner",
+};
+
 export async function getSession(): Promise<SessionContext | null> {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session?.user) return null;
-
-    // Look up the user's default organization membership
-    const membership = await db.query.organizationMembers.findFirst({
-      where: eq(organizationMembers.userId, session.user.id),
-      orderBy: (members, { desc }) => [desc(members.isDefault)],
-    });
-
-    if (!membership) return null;
-
-    return {
-      user: {
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
-      },
-      organizationId: membership.organizationId,
-      role: membership.role as SessionContext["role"],
-    };
-  } catch {
-    return null;
-  }
+  return HARDCODED_SESSION;
 }
 
 export async function requireSession(): Promise<SessionContext> {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("Unauthorized");
-  }
-  return session;
+  return HARDCODED_SESSION;
 }
