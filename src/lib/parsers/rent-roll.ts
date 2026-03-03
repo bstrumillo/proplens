@@ -54,7 +54,6 @@ const columnMap: Record<string, keyof RentRollRow> = {
   "monthly rent": "monthlyRent",
   "rent amount": "monthlyRent",
   monthly_rent: "monthlyRent",
-  "market rent": "monthlyRent",
 
   deposit: "deposit",
   "security deposit": "deposit",
@@ -63,6 +62,7 @@ const columnMap: Record<string, keyof RentRollRow> = {
   balance: "balance",
   "balance due": "balance",
   "outstanding balance": "balance",
+  "past due": "balance",
 };
 
 function parseCurrency(val: string | number | undefined): number {
@@ -107,6 +107,13 @@ export function parseRentRoll(result: ParseResult<Record<string, string>>): Rent
     // Skip empty rows
     const values = Object.values(row).filter((v) => v && v.trim());
     if (values.length === 0) continue;
+
+    // Skip section header rows (e.g. "-> Double Jack Properties, LLC - ...")
+    // and summary rows (e.g. "Total 38 Units", "38 Units")
+    const firstCol = Object.values(row)[0]?.trim() ?? "";
+    if (firstCol.startsWith("->")) continue;
+    if (firstCol.toLowerCase().startsWith("total")) continue;
+    if (/^\d+\s+units$/i.test(firstCol)) continue;
 
     const parsed: Partial<RentRollRow> = {};
 

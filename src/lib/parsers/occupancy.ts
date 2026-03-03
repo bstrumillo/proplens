@@ -1,53 +1,59 @@
 import type { ParseResult } from "papaparse";
 
 export interface OccupancyRow {
-  period: string;
+  unitType: string;
   totalUnits: number;
   occupiedUnits: number;
   vacantUnits: number;
   occupancyRate: number;
+  averageSqFt: number;
+  averageMarketRent: number;
+  vacantRented: number;
+  vacantUnrented: number;
+  noticeRented: number;
+  noticeUnrented: number;
 }
 
 const columnMap: Record<string, keyof OccupancyRow> = {
-  date: "period",
-  month: "period",
-  period: "period",
-  "report date": "period",
-  "as of": "period",
+  "unit type": "unitType",
+  "property type": "unitType",
+  type: "unitType",
+  category: "unitType",
 
+  "# of units": "totalUnits",
   "total units": "totalUnits",
   total: "totalUnits",
   "unit count": "totalUnits",
+  units: "totalUnits",
 
-  "occupied units": "occupiedUnits",
   occupied: "occupiedUnits",
+  "occupied units": "occupiedUnits",
   "units occupied": "occupiedUnits",
 
-  "vacant units": "vacantUnits",
-  vacant: "vacantUnits",
-  "units vacant": "vacantUnits",
-  vacancies: "vacantUnits",
-
+  "% occupied": "occupancyRate",
   "occupancy rate": "occupancyRate",
   occupancy: "occupancyRate",
   "occupancy %": "occupancyRate",
-  "% occupied": "occupancyRate",
+
+  "average sq ft": "averageSqFt",
+  "avg sq ft": "averageSqFt",
+  sqft: "averageSqFt",
+
+  "average market rent": "averageMarketRent",
+  "avg market rent": "averageMarketRent",
+  "market rent": "averageMarketRent",
+
+  "vacant rented": "vacantRented",
+  "vacant unrented": "vacantUnrented",
+  "notice rented": "noticeRented",
+  "notice unrented": "noticeUnrented",
 };
 
 function parseNumber(val: string | number | undefined): number {
   if (val === undefined || val === null || val === "") return 0;
-  const str = String(val).replace(/[%,\s]/g, "");
+  const str = String(val).replace(/[%,$\s]/g, "");
   const num = parseFloat(str);
   return isNaN(num) ? 0 : num;
-}
-
-function parseDate(val: string | undefined): string {
-  if (!val || val.trim() === "") return "";
-  const d = new Date(val);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString().split("T")[0];
-  }
-  return val.trim();
 }
 
 function normalizeHeader(header: string): string {
@@ -81,8 +87,8 @@ export function parseOccupancy(
     for (const [header, field] of Object.entries(mapping)) {
       const value = row[header];
       switch (field) {
-        case "period":
-          parsed.period = parseDate(value);
+        case "unitType":
+          parsed.unitType = value?.trim() ?? "";
           break;
         case "totalUnits":
           parsed.totalUnits = parseNumber(value);
@@ -90,22 +96,38 @@ export function parseOccupancy(
         case "occupiedUnits":
           parsed.occupiedUnits = parseNumber(value);
           break;
-        case "vacantUnits":
-          parsed.vacantUnits = parseNumber(value);
-          break;
         case "occupancyRate":
           parsed.occupancyRate = parseNumber(value);
+          break;
+        case "averageSqFt":
+          parsed.averageSqFt = parseNumber(value);
+          break;
+        case "averageMarketRent":
+          parsed.averageMarketRent = parseNumber(value);
+          break;
+        case "vacantRented":
+          parsed.vacantRented = parseNumber(value);
+          break;
+        case "vacantUnrented":
+          parsed.vacantUnrented = parseNumber(value);
+          break;
+        case "noticeRented":
+          parsed.noticeRented = parseNumber(value);
+          break;
+        case "noticeUnrented":
+          parsed.noticeUnrented = parseNumber(value);
           break;
       }
     }
 
+    // Compute vacant units from sub-categories if not directly available
+    const vacantTotal =
+      (parsed.vacantRented ?? 0) +
+      (parsed.vacantUnrented ?? 0) +
+      (parsed.noticeRented ?? 0) +
+      (parsed.noticeUnrented ?? 0);
+
     // Compute derived values if missing
-    if (parsed.totalUnits && parsed.occupiedUnits && !parsed.vacantUnits) {
-      parsed.vacantUnits = parsed.totalUnits - parsed.occupiedUnits;
-    }
-    if (parsed.totalUnits && parsed.vacantUnits && !parsed.occupiedUnits) {
-      parsed.occupiedUnits = parsed.totalUnits - parsed.vacantUnits;
-    }
     if (parsed.totalUnits && parsed.occupiedUnits && !parsed.occupancyRate) {
       parsed.occupancyRate =
         parsed.totalUnits > 0
@@ -113,13 +135,20 @@ export function parseOccupancy(
           : 0;
     }
 
-    if (parsed.period) {
+    // Only include rows that have a unit type name
+    if (parsed.unitType) {
       rows.push({
-        period: parsed.period,
+        unitType: parsed.unitType,
         totalUnits: parsed.totalUnits ?? 0,
         occupiedUnits: parsed.occupiedUnits ?? 0,
-        vacantUnits: parsed.vacantUnits ?? 0,
+        vacantUnits: vacantTotal || (parsed.totalUnits ?? 0) - (parsed.occupiedUnits ?? 0),
         occupancyRate: parsed.occupancyRate ?? 0,
+        averageSqFt: parsed.averageSqFt ?? 0,
+        averageMarketRent: parsed.averageMarketRent ?? 0,
+        vacantRented: parsed.vacantRented ?? 0,
+        vacantUnrented: parsed.vacantUnrented ?? 0,
+        noticeRented: parsed.noticeRented ?? 0,
+        noticeUnrented: parsed.noticeUnrented ?? 0,
       });
     }
   }
@@ -130,7 +159,15 @@ export function parseOccupancy(
 export function isOccupancy(headers: string[]): boolean {
   const normalized = headers.map(normalizeHeader);
   const hasOccupancy = normalized.some(
-    (h) => h.includes("occupancy") || h.includes("occupied") || h.includes("vacant")
+    (h) =>
+      h.includes("occupancy") ||
+      h === "occupied" ||
+      h === "% occupied" ||
+      h.includes("vacant rented") ||
+      h.includes("vacant unrented")
   );
-  return hasOccupancy;
+  const hasUnitType = normalized.some(
+    (h) => h === "unit type" || h === "property type"
+  );
+  return hasOccupancy || hasUnitType;
 }
