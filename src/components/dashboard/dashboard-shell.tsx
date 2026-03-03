@@ -25,7 +25,7 @@ export function DashboardShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-muted/30">
       <Sidebar organizationName={org.name} />
       <MobileSidebar
         open={mobileOpen}

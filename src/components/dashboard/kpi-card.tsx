@@ -10,18 +10,20 @@ interface KPICardProps {
 
 export function KPICard({ icon: Icon, label, value, description }: KPICardProps) {
   return (
-    <Card>
+    <Card className="shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="pt-0">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            <p className="text-2xl font-bold tracking-tight">{value}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              {label}
+            </p>
+            <p className="text-3xl font-bold tracking-tight">{value}</p>
             {description && (
               <p className="text-xs text-muted-foreground">{description}</p>
             )}
           </div>
-          <div className="rounded-lg bg-muted p-3">
-            <Icon className="size-5 text-muted-foreground" />
+          <div className="rounded-xl bg-primary/10 p-3">
+            <Icon className="size-5 text-primary" />
           </div>
         </div>
       </CardContent>

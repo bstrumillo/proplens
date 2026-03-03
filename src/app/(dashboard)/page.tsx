@@ -1,65 +1,81 @@
-import { Building2, DollarSign, Wrench, Clock } from "lucide-react";
+import { Building2, DollarSign, Clock, DoorOpen } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
-import { getDashboardKPIs } from "@/lib/services/dashboard";
+import { getDashboardData } from "@/lib/services/dashboard";
 import { KPICard } from "@/components/dashboard/kpi-card";
-import { RecentLeasesCard } from "@/components/dashboard/recent-leases-card";
-import { ExpiringLeasesCard } from "@/components/dashboard/expiring-leases-card";
+import { RentCollectionTable } from "@/components/dashboard/rent-collection-table";
+import { LeaseTimeline } from "@/components/dashboard/lease-timeline";
+import { OccupancyChart } from "@/components/dashboard/occupancy-chart";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
-}
-
-function formatPercentage(value: number): string {
-  return `${value.toFixed(1)}%`;
 }
 
 export default async function DashboardPage() {
   const session = await requireSession();
-  const { kpis, recentLeases, expiringLeases } = await getDashboardKPIs(
-    session.organizationId
-  );
+  const { kpis, rentCollection, leaseTimeline, occupancyBreakdown } =
+    await getDashboardData(session.organizationId);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
+          {new Date().toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
+          })}
+        </p>
+      </div>
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <KPICard
           icon={Building2}
           label="Occupancy Rate"
-          value={formatPercentage(kpis.occupancyRate)}
+          value={`${kpis.occupancyRate.toFixed(0)}%`}
           description={`${kpis.occupiedUnits} of ${kpis.totalUnits} units`}
         />
         <KPICard
           icon={DollarSign}
-          label="Monthly Revenue"
-          value={formatCurrency(kpis.monthlyRevenue)}
-          description="From active leases"
-        />
-        <KPICard
-          icon={Wrench}
-          label="Open Maintenance"
-          value={String(kpis.openMaintenanceRequests)}
-          description="Pending requests"
+          label="Rent Collected"
+          value={formatCurrency(kpis.totalCollected)}
+          description={`${kpis.collectionRate.toFixed(0)}% of ${formatCurrency(kpis.totalExpected)}`}
         />
         <KPICard
           icon={Clock}
           label="Expiring Leases"
-          value={String(kpis.expiringLeases30Days)}
-          description="Within 30 days"
+          value={String(kpis.expiringLeases90Days)}
+          description={`${kpis.expiringLeases30Days} within 30 days`}
+        />
+        <KPICard
+          icon={DoorOpen}
+          label="Vacant Units"
+          value={String(kpis.vacantUnits)}
+          description={`${formatCurrency(kpis.monthlyRevenue)} monthly revenue`}
         />
       </div>
 
-      {/* Detail Cards */}
+      {/* Rent Collection Table */}
+      <RentCollectionTable
+        data={rentCollection}
+        totalCollected={kpis.totalCollected}
+        totalExpected={kpis.totalExpected}
+        collectionRate={kpis.collectionRate}
+      />
+
+      {/* Charts Row */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-        <RecentLeasesCard leases={recentLeases} />
-        <ExpiringLeasesCard leases={expiringLeases} />
+        <LeaseTimeline data={leaseTimeline} />
+        <OccupancyChart
+          data={occupancyBreakdown}
+          occupancyRate={kpis.occupancyRate}
+          totalUnits={kpis.totalUnits}
+        />
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   Settings,
   HardHat,
   ClipboardList,
+  Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
       { label: "Vendors", icon: HardHat, path: "/maintenance/vendors" },
     ],
   },
+  { label: "Import", icon: Upload, path: "/upload" },
   { label: "Financials", icon: DollarSign, path: "/financials" },
   { label: "Settings", icon: Settings, path: "/settings" },
 ];
@@ -113,7 +115,7 @@ function SidebarLogo() {
       <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">
         P
       </div>
-      <span className="text-lg font-bold text-white">PropForge</span>
+      <span className="text-lg font-bold text-white">PropLens</span>
     </div>
   );
 }

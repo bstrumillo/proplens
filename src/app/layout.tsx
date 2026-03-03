@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PropForge",
-  description: "Agentic-first property management platform",
+  title: "PropLens",
+  description: "Property analytics dashboard for AppFolio",
 };
 
 export default function RootLayout({

@@ -1,5 +1,5 @@
 {
-  "name": "propforge",
+  "name": "proplens",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -25,11 +25,13 @@
     "lucide-react": "^0.575.0",
     "nanoid": "^5.1.6",
     "next": "16.1.6",
+    "papaparse": "^5.5.3",
     "pg": "^8.19.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.2",
+    "recharts": "^2.15.4",
     "resend": "^6.9.2",
     "sonner": "^2.0.7",
     "stripe": "^20.4.0",
@@ -39,6 +41,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
