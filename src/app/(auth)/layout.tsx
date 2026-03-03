@@ -10,9 +10,9 @@ export default function AuthLayout({
           <div className="flex size-10 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">
             P
           </div>
-          <h1 className="text-2xl font-bold">PropForge</h1>
+          <h1 className="text-2xl font-bold">PropLens</h1>
           <p className="text-sm text-muted-foreground">
-            Agentic-first property management
+            Property analytics dashboard
           </p>
         </div>
         {children}
