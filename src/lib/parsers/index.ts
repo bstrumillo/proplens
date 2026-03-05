@@ -57,7 +57,7 @@ export function parseCSV(csvString: string): ParsedReport {
 
 export const reportTypeLabels: Record<ReportType, string> = {
   rent_roll: "Rent Roll",
-  receipts: "Receipts Detail",
+  receipts: "Resident Financial Activity",
   occupancy: "Occupancy Summary",
   unknown: "Unknown Report",
 };
