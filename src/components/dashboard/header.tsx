@@ -69,7 +69,7 @@ export function DashboardHeader({
   }
 
   return (
-    <header className="glass sticky top-0 z-50 flex h-16 items-center gap-4 border-b border-border/50 px-4 md:px-6">
+    <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b border-white/60 bg-white/40 px-4 backdrop-blur-xl md:px-6" style={{ WebkitBackdropFilter: "blur(24px)" }}>
       <Button
         variant="ghost"
         size="icon"

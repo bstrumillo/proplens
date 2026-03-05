@@ -138,7 +138,7 @@ function SidebarOrgName({ name }: { name: string }) {
 export function Sidebar({ organizationName }: { organizationName: string }) {
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
-      <div className="flex grow flex-col gap-4 overflow-y-auto bg-gradient-to-b from-slate-900 to-slate-950 border-r border-white/5">
+      <div className="flex grow flex-col gap-4 overflow-y-auto bg-gradient-to-b from-slate-900 via-indigo-950/80 to-slate-950 border-r border-white/5">
         <SidebarLogo />
         <SidebarNav />
         <SidebarOrgName name={organizationName} />
@@ -158,7 +158,7 @@ export function MobileSidebar({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-64 bg-gradient-to-b from-slate-900 to-slate-950 p-0 border-r border-white/5" showCloseButton={false}>
+      <SheetContent side="left" className="w-64 bg-gradient-to-b from-slate-900 via-indigo-950/80 to-slate-950 p-0 border-r border-white/5" showCloseButton={false}>
         <SheetHeader className="sr-only">
           <SheetTitle>Navigation</SheetTitle>
         </SheetHeader>

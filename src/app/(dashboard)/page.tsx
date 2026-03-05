@@ -24,13 +24,15 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          {new Date().toLocaleDateString("en-US", {
-            month: "long",
-            year: "numeric",
-          })}
-        </p>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-400 bg-clip-text text-transparent">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {new Date().toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -40,24 +42,28 @@ export default async function DashboardPage() {
           label="Occupancy Rate"
           value={`${kpis.occupancyRate.toFixed(0)}%`}
           description={`${kpis.occupiedUnits} of ${kpis.totalUnits} units`}
+          color="indigo"
         />
         <KPICard
           icon={DollarSign}
           label="Rent Collected"
           value={formatCurrency(kpis.totalCollected)}
           description={`${kpis.collectionRate.toFixed(0)}% of ${formatCurrency(kpis.totalExpected)}`}
+          color="emerald"
         />
         <KPICard
           icon={Clock}
           label="Expiring Leases"
           value={String(kpis.expiringLeases90Days)}
           description={`${kpis.expiringLeases30Days} within 30 days`}
+          color="amber"
         />
         <KPICard
           icon={DoorOpen}
           label="Vacant Units"
           value={String(kpis.vacantUnits)}
           description={`${formatCurrency(kpis.monthlyRevenue)} monthly revenue`}
+          color="rose"
         />
       </div>
 
