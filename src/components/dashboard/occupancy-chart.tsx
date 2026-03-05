@@ -36,7 +36,7 @@ export function OccupancyChart({
   }
 
   return (
-    <Card>
+    <Card variant="glass" className="hover:shadow-[var(--elevation-3)] transition-all duration-300">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Occupancy</CardTitle>
       </CardHeader>

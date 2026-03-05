@@ -21,7 +21,7 @@ export function LeaseTimeline({ data }: { data: LeaseExpirationMonth[] }) {
   const totalExpiring = data.reduce((sum, m) => sum + m.count, 0);
 
   return (
-    <Card>
+    <Card variant="glass" className="hover:shadow-[var(--elevation-3)] transition-all duration-300">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold">

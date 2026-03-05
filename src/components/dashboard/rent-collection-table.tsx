@@ -69,7 +69,7 @@ export function RentCollectionTable({
   ).length;
 
   return (
-    <Card>
+    <Card variant="glass">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold">
@@ -119,7 +119,7 @@ export function RentCollectionTable({
               {data.map((unit) => {
                 const cfg = statusConfig[unit.status];
                 return (
-                  <TableRow key={unit.unitNumber}>
+                  <TableRow key={unit.unitNumber} className="hover:bg-primary/5 transition-colors duration-150">
                     <TableCell className="font-medium">
                       {unit.unitNumber}
                     </TableCell>
