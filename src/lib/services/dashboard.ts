@@ -15,6 +15,7 @@ export interface DashboardKPIs {
   totalCollected: number;
   totalExpected: number;
   collectionRate: number;
+  totalIncome: number;
 }
 
 export interface RentCollectionUnit {
@@ -40,11 +41,19 @@ export interface OccupancyBreakdown {
   fill: string;
 }
 
+export interface IncomeBreakdownItem {
+  type: string;
+  label: string;
+  amount: number;
+  color: string;
+}
+
 export interface DashboardData {
   kpis: DashboardKPIs;
   rentCollection: RentCollectionUnit[];
   leaseTimeline: LeaseExpirationMonth[];
   occupancyBreakdown: OccupancyBreakdown[];
+  incomeBreakdown: IncomeBreakdownItem[];
 }
 
 // ── Service ──────────────────────────────────────────────────────────
@@ -52,15 +61,16 @@ export interface DashboardData {
 export async function getDashboardData(
   organizationId: string
 ): Promise<DashboardData> {
-  const [kpis, rentCollection, leaseTimeline, occupancyBreakdown] =
+  const [kpis, rentCollection, leaseTimeline, occupancyBreakdown, incomeBreakdown] =
     await Promise.all([
       getKPIs(organizationId),
       getRentCollection(organizationId),
       getLeaseTimeline(organizationId),
       getOccupancyBreakdown(organizationId),
+      getIncomeBreakdown(organizationId),
     ]);
 
-  return { kpis, rentCollection, leaseTimeline, occupancyBreakdown };
+  return { kpis, rentCollection, leaseTimeline, occupancyBreakdown, incomeBreakdown };
 }
 
 // ── KPIs ─────────────────────────────────────────────────────────────
@@ -141,6 +151,16 @@ async function getKPIs(organizationId: string): Promise<DashboardKPIs> {
   const totalExpected = parseFloat(collectionResult.rows[0]?.total_expected ?? "0");
   const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
 
+  // Total income for current month (all payment types)
+  const totalIncomeResult = await db.execute<{ total_income: string }>(sql`
+    SELECT COALESCE(SUM(amount), 0)::text AS total_income
+    FROM payments
+    WHERE organization_id = ${organizationId}
+      AND status = 'completed'
+      AND date_trunc('month', paid_at) = date_trunc('month', CURRENT_DATE)
+  `);
+  const totalIncome = parseFloat(totalIncomeResult.rows[0]?.total_income ?? "0");
+
   return {
     totalUnits,
     occupiedUnits,
@@ -153,6 +173,7 @@ async function getKPIs(organizationId: string): Promise<DashboardKPIs> {
     totalCollected,
     totalExpected,
     collectionRate,
+    totalIncome,
   };
 }
 
@@ -315,5 +336,49 @@ async function getOccupancyBreakdown(
     status: row.status,
     count: parseInt(row.count, 10),
     fill: statusColors[row.status] ?? "var(--color-chart-5)",
+  }));
+}
+
+// ── Income Breakdown ─────────────────────────────────────────────────
+
+const incomeTypeLabels: Record<string, string> = {
+  rent: "Rent",
+  fee: "Fees",
+  insurance: "Insurance",
+  security_deposit: "Security Deposits",
+  other: "Other",
+};
+
+const incomeTypeColors: Record<string, string> = {
+  rent: "#4f46e5",
+  fee: "#0891b2",
+  insurance: "#059669",
+  security_deposit: "#d97706",
+  other: "#6b7280",
+};
+
+async function getIncomeBreakdown(
+  organizationId: string
+): Promise<IncomeBreakdownItem[]> {
+  const result = await db.execute<{
+    type: string;
+    total_amount: string;
+  }>(sql`
+    SELECT
+      type::text,
+      COALESCE(SUM(amount), 0)::text AS total_amount
+    FROM payments
+    WHERE organization_id = ${organizationId}
+      AND status = 'completed'
+      AND date_trunc('month', paid_at) = date_trunc('month', CURRENT_DATE)
+    GROUP BY type
+    ORDER BY SUM(amount) DESC
+  `);
+
+  return result.rows.map((row) => ({
+    type: row.type,
+    label: incomeTypeLabels[row.type] ?? row.type,
+    amount: parseFloat(row.total_amount),
+    color: incomeTypeColors[row.type] ?? "#6b7280",
   }));
 }

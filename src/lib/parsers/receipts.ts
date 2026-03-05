@@ -8,6 +8,7 @@ export interface ReceiptRow {
   method: string;
   description: string;
   referenceNumber: string;
+  category: "rent" | "fee" | "insurance" | "cam" | "security_deposit" | "prepayment" | "other";
 }
 
 function parseCurrency(val: string | number | undefined): number {
@@ -72,6 +73,20 @@ function formatTenantName(name: string): string {
 }
 
 /**
+ * Classify an AppFolio account name into a payment category.
+ */
+function classifyAccountType(accountName: string): ReceiptRow["category"] {
+  const lower = accountName.toLowerCase().trim();
+  if (lower === "rent") return "rent";
+  if (lower.includes("management fee")) return "fee";
+  if (lower.includes("tenant liability insurance") || lower.includes("renters insurance")) return "insurance";
+  if (lower.startsWith("cam")) return "cam";
+  if (lower.includes("prepay")) return "prepayment";
+  if (lower.includes("security deposit")) return "security_deposit";
+  return "other";
+}
+
+/**
  * Detect if this is an AppFolio Resident Financial Activity report.
  * These have headers: Account Name, Last Receipt Date, Beginning Balance, Charges, Payments, Ending Balance
  */
@@ -111,6 +126,12 @@ function parseResidentFinancialActivity(
     // Skip rows without a current tenant context
     if (!currentTenant) continue;
 
+    // Classify the account type
+    const category = classifyAccountType(accountName);
+
+    // Skip prepayments entirely — they're balance adjustments, not real payments
+    if (category === "prepayment") continue;
+
     // We're interested in Rent rows (primary) and can capture other account types too
     const paymentsRaw = parseCurrency(row["Payments"]);
     const amount = Math.abs(paymentsRaw);
@@ -126,6 +147,7 @@ function parseResidentFinancialActivity(
         method: "autopay", // AppFolio doesn't include method in this report
         description: accountName, // e.g., "Rent", "Management Fees", etc.
         referenceNumber: "",
+        category,
       });
     }
   }
@@ -229,6 +251,7 @@ function parseFlatReceipts(
         method: parsed.method ?? "other",
         description: parsed.description ?? "",
         referenceNumber: parsed.referenceNumber ?? "",
+        category: "rent",
       });
     }
   }

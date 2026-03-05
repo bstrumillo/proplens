@@ -5,6 +5,7 @@ import { KPICard } from "@/components/dashboard/kpi-card";
 import { RentCollectionTable } from "@/components/dashboard/rent-collection-table";
 import { LeaseTimeline } from "@/components/dashboard/lease-timeline";
 import { OccupancyChart } from "@/components/dashboard/occupancy-chart";
+import { IncomeBreakdown } from "@/components/dashboard/income-breakdown";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -17,7 +18,7 @@ function formatCurrency(amount: number): string {
 
 export default async function DashboardPage() {
   const session = await requireSession();
-  const { kpis, rentCollection, leaseTimeline, occupancyBreakdown } =
+  const { kpis, rentCollection, leaseTimeline, occupancyBreakdown, incomeBreakdown } =
     await getDashboardData(session.organizationId);
 
   return (
@@ -69,12 +70,16 @@ export default async function DashboardPage() {
       />
 
       {/* Charts Row */}
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         <LeaseTimeline data={leaseTimeline} />
         <OccupancyChart
           data={occupancyBreakdown}
           occupancyRate={kpis.occupancyRate}
           totalUnits={kpis.totalUnits}
+        />
+        <IncomeBreakdown
+          data={incomeBreakdown}
+          totalIncome={kpis.totalIncome}
         />
       </div>
     </div>

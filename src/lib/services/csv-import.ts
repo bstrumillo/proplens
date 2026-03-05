@@ -63,6 +63,151 @@ function toUnitStatus(status: string): UnitStatus | null {
   return null;
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Unit matching helpers
+// ────────────────────────────────────────────────────────────────────────────
+
+type UnitRecord = typeof units.$inferSelect;
+
+/**
+ * Normalize a unit number from AppFolio by stripping trailing descriptions
+ * and sub-unit suffixes.
+ * Examples:
+ *   "652-H Furnished, walk in ready..." → "652-H"
+ *   "636-F - 1" → "636-F"
+ *   "652-D - d" → "652-D"
+ */
+function normalizeUnitNumber(raw: string): string {
+  let unit = raw.trim();
+  // Strip trailing descriptions: "652-H Furnished, walk in ready..." → "652-H"
+  unit = unit.replace(/\s+(Furnished|Room|Storage|Garage|Parking|Premium).*$/i, "");
+  // Strip sub-unit suffix: "636-F - 1" → "636-F", "652-D - d" → "652-D"
+  unit = unit.replace(/\s+-\s+\w+$/, "");
+  return unit;
+}
+
+/**
+ * Try multiple matching strategies to find a unit in the map.
+ */
+function findUnit(
+  unitNumber: string,
+  unitMap: Map<string, UnitRecord>
+): UnitRecord | undefined {
+  // Exact match
+  let unit = unitMap.get(unitNumber);
+  if (unit) return unit;
+
+  // Normalized match
+  const normalized = normalizeUnitNumber(unitNumber);
+  if (normalized !== unitNumber) {
+    unit = unitMap.get(normalized);
+    if (unit) return unit;
+  }
+
+  return undefined;
+}
+
+/**
+ * Auto-create a unit in the DB when the building prefix matches an existing unit.
+ * Extracts the building prefix (e.g., "636" from "636-G") and finds an existing
+ * unit with the same prefix to determine the buildingId.
+ */
+async function autoCreateUnit(
+  organizationId: string,
+  unitNumber: string,
+  unitMap: Map<string, UnitRecord>,
+  result: ImportResult
+): Promise<UnitRecord | undefined> {
+  // Normalize first so we create the unit with the clean name
+  const cleanUnit = normalizeUnitNumber(unitNumber);
+
+  // Extract building prefix: "636-G" → "636", "652-H" → "652"
+  const prefixMatch = cleanUnit.match(/^(\d+)/);
+  if (!prefixMatch) return undefined;
+
+  const prefix = prefixMatch[1];
+
+  // Find any existing unit with the same building prefix to get buildingId
+  let buildingId: string | undefined;
+  for (const [existingUnitNumber, existingUnit] of unitMap.entries()) {
+    if (existingUnitNumber.startsWith(prefix)) {
+      buildingId = existingUnit.buildingId;
+      break;
+    }
+  }
+
+  if (!buildingId) return undefined;
+
+  try {
+    const [newUnit] = await db
+      .insert(units)
+      .values({
+        organizationId,
+        buildingId,
+        unitNumber: cleanUnit,
+        type: "apartment",
+        status: "occupied", // It appears in a financial report, so it's occupied
+      })
+      .returning();
+
+    // Add to the map so subsequent rows can find it
+    unitMap.set(cleanUnit, newUnit);
+    result.created.units++;
+
+    return newUnit;
+  } catch {
+    // Unit might already exist (race condition or duplicate) — try to fetch it
+    const existing = await db
+      .select()
+      .from(units)
+      .where(
+        and(
+          eq(units.organizationId, organizationId),
+          eq(units.unitNumber, cleanUnit)
+        )
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      unitMap.set(cleanUnit, existing[0]);
+      return existing[0];
+    }
+
+    return undefined;
+  }
+}
+
+/**
+ * Resolve a unit by trying findUnit first, then autoCreateUnit as fallback.
+ */
+async function resolveUnit(
+  organizationId: string,
+  unitNumber: string,
+  unitMap: Map<string, UnitRecord>,
+  result: ImportResult
+): Promise<UnitRecord | undefined> {
+  const found = findUnit(unitNumber, unitMap);
+  if (found) return found;
+
+  return autoCreateUnit(organizationId, unitNumber, unitMap, result);
+}
+
+/**
+ * Map a receipt category to a payment type string for the payments table.
+ */
+function categoryToPaymentType(category: ReceiptRow["category"]): string {
+  switch (category) {
+    case "rent": return "rent";
+    case "fee": return "fee";
+    case "insurance": return "insurance";
+    case "cam": return "cam";
+    case "security_deposit": return "security_deposit";
+    case "prepayment": return "prepayment";
+    case "other": return "other";
+    default: return "rent";
+  }
+}
+
 /**
  * Import parsed CSV data into domain tables.
  * Dispatches to the appropriate handler based on parsed.type.
@@ -105,7 +250,7 @@ async function importRentRoll(
     .from(units)
     .where(eq(units.organizationId, organizationId));
 
-  const unitMap = new Map<string, (typeof orgUnits)[number]>();
+  const unitMap = new Map<string, UnitRecord>();
   for (const u of orgUnits) {
     unitMap.set(u.unitNumber, u);
   }
@@ -139,12 +284,12 @@ async function importRentRoll(
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
-      // Find unit by unitNumber
-      const unit = unitMap.get(row.unitNumber);
+      // Find unit by unitNumber (with normalization + auto-create fallback)
+      const unit = await resolveUnit(organizationId, row.unitNumber, unitMap, result);
       if (!unit) {
         result.skipped++;
         result.errors.push(
-          `Row ${i + 1}: Unit "${row.unitNumber}" not found — skipped.`
+          `Row ${i + 1}: Unit "${row.unitNumber}" not found and could not be auto-created — skipped.`
         );
         continue;
       }
@@ -290,7 +435,7 @@ async function importReceipts(
     .from(units)
     .where(eq(units.organizationId, organizationId));
 
-  const unitMap = new Map<string, (typeof orgUnits)[number]>();
+  const unitMap = new Map<string, UnitRecord>();
   for (const u of orgUnits) {
     unitMap.set(u.unitNumber, u);
   }
@@ -321,11 +466,12 @@ async function importReceipts(
         continue;
       }
 
-      const unit = unitMap.get(row.unitNumber);
+      // Use findUnit with normalization + auto-create fallback
+      const unit = await resolveUnit(organizationId, row.unitNumber, unitMap, result);
       if (!unit) {
         result.skipped++;
         result.errors.push(
-          `Row ${i + 1}: Unit "${row.unitNumber}" not found — skipped.`
+          `Row ${i + 1}: Unit "${row.unitNumber}" not found and could not be auto-created — skipped.`
         );
         continue;
       }
@@ -349,14 +495,14 @@ async function importReceipts(
         }
       }
 
-      // Insert payment
+      // Insert payment with category-based type
       await db.insert(payments).values({
         organizationId,
         leaseId: lease.id,
         tenantId: lease.tenantId,
         amount: String(row.amount),
         method: toPaymentMethod(row.method),
-        type: "rent",
+        type: categoryToPaymentType(row.category),
         status: "completed",
         paidAt: paidAt ?? new Date(),
         description: row.description || null,
