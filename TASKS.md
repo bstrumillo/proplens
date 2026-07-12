@@ -118,34 +118,97 @@
   - **Status:** Code wired but credentials needed
   - **Notes:** Better Auth Google provider configured, UI buttons in place. Needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local
 
-## Phase 2: Financial Engine (Backlog)
-- [ ] TASK-200: Stripe Connect integration
-  - **Priority:** P1
-  - **Blocked by:** Stripe account setup (Brian action item)
-- [ ] TASK-201: Tenant payment portal (ACH + card)
-- [ ] TASK-202: Auto-pay enrollment
-- [ ] TASK-203: Late fee automation
-- [ ] TASK-204: Plaid bank sync
-  - **Blocked by:** Plaid account setup (Brian action item)
-- [ ] TASK-205: Transaction categorization
-- [ ] TASK-206: P&L report generation
-- [ ] TASK-207: Cash flow dashboard
-- [ ] TASK-208: Schedule E report generation
+---
 
-## Phase 3: Agent Layer (Backlog)
-- [ ] TASK-300: OpenAPI 3.1 spec generation
-- [ ] TASK-301: MCP server (TypeScript)
-- [ ] TASK-302: OAuth 2.0 for agent authentication
-- [ ] TASK-303: Tool definitions with agent-oriented descriptions
-- [ ] TASK-304: Rate limiting per API key
-- [ ] TASK-305: Webhook system
-- [ ] TASK-306: llms.txt for AI discoverability
-- [ ] TASK-307: TypeScript SDK from OpenAPI spec
+> **Roadmap revised 2026-07-12** per the approved "Dogfood Double Jack, Then Sell" plan.
+> Strategy: run Brian's own ~41 units (Double Jack 37 + 630 DJ LLC 4) end-to-end on
+> PropForge including real rent collection, cancel AppFolio (~$300/mo), then sell to
+> other small landlords. Old Phase 2–4 tasks are superseded by Phases A–E below.
 
-## Phase 4: Polish & Launch (Backlog)
-- [ ] TASK-400: Double Jack parallel run with AppFolio
-- [ ] TASK-401: Edge cases (partial payments, proration, mid-month moves)
-- [ ] TASK-402: Illinois landlord-tenant law compliance
-- [ ] TASK-403: Mobile-responsive tenant portal
-- [ ] TASK-404: Onboarding flow for new landlords
-- [ ] TASK-405: Marketing site and pricing page
+## Phase A: Trustworthy Foundation (Complete 2026-07-12)
+- [x] TASK-A1: Restore real Better Auth authentication
+  - **Completed:** 2026-07-12
+  - **Notes:** Auth had been silently disabled (hardcoded session, shared-password gate).
+    Restored: Better Auth tables in schema, real session resolution + membership lookup,
+    real /login, optional HMAC-cookie /gate curtain (GATE_PASSWORD env, no fallback),
+    fail-closed ingest route, Zod-validated env (src/lib/env.ts), scripts/link-owner.ts
+- [x] TASK-A2: Fix tenant detail tabs (hardcoded empty states)
+  - **Completed:** 2026-07-12
+  - **Notes:** Leases/Payments/Maintenance tabs now query real data; new payments read service
+- [x] TASK-A3: Real settings page
+  - **Completed:** 2026-07-12
+  - **Notes:** Org profile edit (admin+ gate), members list, Phase B placeholder cards
+- [x] TASK-A4: Test harness + CI
+  - **Completed:** 2026-07-12
+  - **Notes:** Vitest vs real Postgres; 28-test cross-tenant isolation suite (compensating
+    control for no-RLS); CSV import round-trip; dashboard SQL tests; 4 Playwright smoke
+    tests; GitHub Actions (PR: lint/typecheck/test/build; main: e2e)
+- [x] TASK-A5: Migration discipline
+  - **Completed:** 2026-07-12
+  - **Notes:** Baseline migration (28 tables), db:migrate for fresh envs,
+    scripts/mark-migrations-applied.ts for one-time prod adoption
+
+## Phase B: Money In (target: Sept 1 first payment, Oct 1 broad rollout)
+- [ ] TASK-B1: Entities + ledger schema
+  - **Notes:** `entities` table (one org, per-LLC Stripe Connect), `properties.entityId`,
+    `charges` + `payment_allocations` tables, unique index (leaseId, type, periodStart).
+    Data entry: create both LLC entities, tag properties, enter 630 DJ's 4 units via UI
+- [ ] TASK-B2: Payments/ledger service + UI
+  - **Notes:** recordManualPayment (FIFO allocation), createCharge, voidCharge,
+    getLeaseLedger, derived balances ONLY (never stored). Heaviest test coverage in repo:
+    partial/over-payment, multi-charge allocation, proration (actual-days-in-month), void
+- [ ] TASK-B3: Charge engine crons
+  - **Notes:** /api/cron/generate-charges (idempotent, prorated) + /api/cron/late-fees
+    (grace period from lease), CRON_SECRET bearer auth. Cutover ~Sept 1; legacy imports unallocated
+- [ ] TASK-B4: Stripe Connect onboarding
+  - **⚠️ BRIAN:** create Stripe platform account first (~1 day incl. verification)
+  - **Notes:** Express account per entity (KYC twice — one per LLC), onboarding from
+    settings, webhook route with signature verification
+- [ ] TASK-B5: Tenant portal + online payments (critical path)
+  - **Notes:** Better Auth magic-link plugin (Resend), (portal) route group,
+    requireTenantSession, Stripe Checkout on entity's connected account, ACH default,
+    webhook state machine (allocate only on completed; de-allocate on failure), isolation tests
+- [ ] TASK-B6: Receipts + late notices via Resend
+  - **⚠️ BRIAN:** create Resend account + verify sending domain
+- [ ] TASK-B7: Autopay (may slip to Phase C)
+  - **Notes:** SetupIntent → paymentMethods, due-date off-session PaymentIntent cron
+
+## Phase C: Money Visible (target: AppFolio cancelled ~Nov 1)
+- [ ] TASK-C1: Schedule E system categories seed + financials service
+- [ ] TASK-C2: Auto-post income transactions from completed payments (+ legacy backfill)
+- [ ] TASK-C3: Manual expense entry (fast dialog; optional work-order link)
+- [ ] TASK-C4: Real financials page (transaction table, filters, re-categorization)
+- [ ] TASK-C5: Reports: P&L per entity + property (Schedule E layout), owner cash flow,
+      CSV export + print-styled PDF page
+- [ ] TASK-C6: Importer extension: AppFolio expense/GL CSVs → financialTransactions
+- [ ] TASK-C7: Plaid bank sync (optional tail — cut if it threatens the cancellation milestone)
+  - **⚠️ BRIAN:** Plaid developer account (only if C7 proceeds)
+
+## Phase D: Sellable (only after AppFolio cancelled)
+- [ ] TASK-D1: Security pass (remove gate, rate-limit auth endpoints, email verification,
+      isolation suite expanded to portal + financials; RLS explicitly deferred)
+- [ ] TASK-D2: Self-serve onboarding wedge (guided CSV import wizard: column mapping,
+      dry-run preview) — "AppFolio portfolio live in 15 minutes"
+- [ ] TASK-D3: SaaS billing (Stripe Billing; free ≤3 units, ~$15–25/mo beyond;
+      flip application_fee on external orgs' rent payments)
+- [ ] TASK-D4: Marketing site + legal ((marketing) route group, pricing, ToS/privacy
+      + one-time lawyer review)
+  - **⚠️ BRIAN:** buy domain; lawyer review budget (few hundred $)
+- [ ] TASK-D5: Beta cohort — 5–10 local landlords, white-glove imports, weekly feedback
+- [ ] TASK-D6: Tenant screening partner (applicant-paid; first to cut if beta redirects)
+
+## Phase E: Explicitly Deferred (revisit ~Feb 2027)
+- Agent/MCP layer + real API-key auth (build together when there's a consumer)
+- Native mobile apps (responsive web/PWA only)
+- Multi-state compliance, lease e-signing, document generation
+- Full Postgres RLS (isolation test suite is the compensating control)
+- Communications center UI, Twilio SMS, QuickBooks export, trust accounting, vendor portal
+- Lease document / maintenance photo upload (needs S3/R2 — small standalone task if needed)
+
+## Superseded task mapping (old → new)
+- TASK-121 (tenant portal) → TASK-B5 · TASK-131 (lease docs) → Phase E
+- TASK-180 (Google sign-in) → optional Brian TODO (code ready, needs credentials)
+- TASK-200→B4 · 201→B5 · 202→B7 · 203→B3 · 204→C7 · 205→C1/C4 · 206→C5 · 207→C5 · 208→C5
+- TASK-300–307 (agent layer) → Phase E
+- TASK-400 (parallel run) → Phase B/C definition-of-done · 401→B2 tests · 402→D4
+- TASK-403→B5 · 404→D2 · 405→D4
