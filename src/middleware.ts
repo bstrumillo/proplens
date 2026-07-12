@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
+import { GATE_COOKIE, gateEnabled, isGatePassed } from "@/lib/auth/gate";
 
-const publicPaths = ["/login", "/api/auth", "/api/v1/ingest"];
+// Paths that skip both the gate and the session check.
+const openPaths = ["/api/auth", "/api/v1/ingest", "/gate"];
 
-export function middleware(request: NextRequest) {
+// Pages that require passing the gate (when enabled) but not a session.
+const authPages = ["/login", "/register"];
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
-  if (publicPaths.some((path) => pathname.startsWith(path))) {
+  if (openPaths.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
@@ -19,10 +24,32 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for password gate cookie
-  const gateToken = request.cookies.get("proplens-gate")?.value;
+  // Optional pre-launch curtain in front of everything else.
+  if (gateEnabled()) {
+    const gateCookie = request.cookies.get(GATE_COOKIE)?.value;
+    if (!(await isGatePassed(gateCookie))) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL("/gate", request.url));
+    }
+  }
 
-  if (gateToken !== "authenticated") {
+  // Optimistic session check (cookie presence only) — real enforcement
+  // happens server-side in requireSession()/authenticateApiRequest().
+  const sessionCookie = getSessionCookie(request);
+
+  if (authPages.some((path) => pathname.startsWith(path))) {
+    if (sessionCookie) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  if (!sessionCookie) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
