@@ -414,6 +414,46 @@ export async function getUnitsForDropdown(
   return result;
 }
 
+// ── List leases for a tenant ─────────────────────────────────────────
+
+export type TenantLease = {
+  id: string;
+  status: Lease["status"];
+  type: Lease["type"];
+  startDate: string;
+  endDate: string | null;
+  monthlyRent: string;
+  unitNumber: string;
+  buildingName: string;
+};
+
+export async function listLeasesByTenant(
+  organizationId: string,
+  tenantId: string
+): Promise<TenantLease[]> {
+  return db
+    .select({
+      id: leases.id,
+      status: leases.status,
+      type: leases.type,
+      startDate: leases.startDate,
+      endDate: leases.endDate,
+      monthlyRent: leases.monthlyRent,
+      unitNumber: units.unitNumber,
+      buildingName: buildings.name,
+    })
+    .from(leases)
+    .innerJoin(units, eq(leases.unitId, units.id))
+    .innerJoin(buildings, eq(units.buildingId, buildings.id))
+    .where(
+      and(
+        eq(leases.organizationId, organizationId),
+        eq(leases.tenantId, tenantId)
+      )
+    )
+    .orderBy(desc(leases.startDate));
+}
+
 // ── Helper: get tenants for dropdown ─────────────────────────────────
 
 export type TenantOption = {
