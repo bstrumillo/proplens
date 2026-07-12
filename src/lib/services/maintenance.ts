@@ -275,6 +275,40 @@ export async function getOpenRequestCount(
   return result[0]?.count ?? 0;
 }
 
+// ── List maintenance requests for a tenant ──────────────────────────
+export type TenantMaintenanceRequest = {
+  id: string;
+  title: string;
+  status: MaintenanceRequest["status"];
+  priority: MaintenanceRequest["priority"];
+  unitNumber: string | null;
+  createdAt: Date;
+};
+
+export async function listMaintenanceByTenant(
+  organizationId: string,
+  tenantId: string
+): Promise<TenantMaintenanceRequest[]> {
+  return db
+    .select({
+      id: maintenanceRequests.id,
+      title: maintenanceRequests.title,
+      status: maintenanceRequests.status,
+      priority: maintenanceRequests.priority,
+      unitNumber: units.unitNumber,
+      createdAt: maintenanceRequests.createdAt,
+    })
+    .from(maintenanceRequests)
+    .leftJoin(units, eq(maintenanceRequests.unitId, units.id))
+    .where(
+      and(
+        eq(maintenanceRequests.organizationId, organizationId),
+        eq(maintenanceRequests.tenantId, tenantId)
+      )
+    )
+    .orderBy(desc(maintenanceRequests.createdAt));
+}
+
 // ── Helper: Get units for select dropdown ───────────────────────────
 export async function getUnitsForSelect(
   organizationId: string

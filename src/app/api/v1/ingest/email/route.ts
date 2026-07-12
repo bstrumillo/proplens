@@ -6,14 +6,20 @@ import { parseCSV, reportTypeLabels } from "@/lib/parsers";
 import { importParsedData } from "@/lib/services/csv-import";
 import { revalidatePath } from "next/cache";
 
-const CRON_SECRET = process.env.CRON_SECRET;
-const DEFAULT_ORG_ID = process.env.DEFAULT_ORG_ID ?? "4621f985-b8de-4b19-a243-54821b9adc8c";
-
 export async function POST(request: NextRequest) {
-  // 1. Auth via Bearer token
+  // 1. Auth via Bearer token — fail closed if the route isn't configured.
+  const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const DEFAULT_ORG_ID = process.env.DEFAULT_ORG_ID;
+  if (!DEFAULT_ORG_ID) {
+    return NextResponse.json(
+      { error: "DEFAULT_ORG_ID is not configured" },
+      { status: 500 }
+    );
   }
 
   try {

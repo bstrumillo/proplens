@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const GATE_PASSWORD = process.env.GATE_PASSWORD ?? "doublejack2024";
+import { gateCookieValue, gateEnabled, GATE_COOKIE } from "@/lib/auth/gate";
 
 export async function POST(request: NextRequest) {
+  if (!gateEnabled()) {
+    return NextResponse.json({ error: "Gate is disabled" }, { status: 404 });
+  }
+
   const { password } = await request.json();
 
-  if (password !== GATE_PASSWORD) {
+  if (password !== process.env.GATE_PASSWORD) {
     return NextResponse.json({ error: "Wrong password" }, { status: 401 });
   }
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set("proplens-gate", "authenticated", {
+  response.cookies.set(GATE_COOKIE, await gateCookieValue(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

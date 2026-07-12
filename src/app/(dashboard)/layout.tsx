@@ -1,4 +1,5 @@
-import { getSession } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
+import { getSessionState } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
@@ -11,19 +12,25 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getSession();
+  const state = await getSessionState();
 
-  const org = session
-    ? await db.query.organizations.findFirst({
-        where: eq(organizations.id, session.organizationId),
-      })
-    : null;
+  if (state.status === "unauthenticated") {
+    redirect("/login");
+  }
+  if (state.status === "no-organization") {
+    redirect("/onboarding");
+  }
+
+  const session = state.session;
+  const org = await db.query.organizations.findFirst({
+    where: eq(organizations.id, session.organizationId),
+  });
 
   return (
     <DashboardShell
       user={{
-        name: session?.user.name ?? "User",
-        email: session?.user.email ?? "",
+        name: session.user.name,
+        email: session.user.email,
       }}
       org={{
         name: org?.name ?? "My Organization",
